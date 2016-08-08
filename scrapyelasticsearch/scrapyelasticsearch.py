@@ -22,11 +22,15 @@ import logging
 import hashlib
 import types
 
-from transportNTLM import TransportNTLM
+try:
+    from transportNTLM import TransportNTLM
+except ImportError:
+    from scrapyelasticsearch.transportNTLM import TransportNTLM
 
 
 class InvalidSettingsException(Exception):
     pass
+
 
 class ElasticSearchPipeline(object):
     settings = None
@@ -58,10 +62,10 @@ class ElasticSearchPipeline(object):
         if authType == 'NTLM':
             ext.es = Elasticsearch(hosts=es_servers,
                                    transport_class=TransportNTLM,
-                                   ntlm_user= ext.settings['ELASTICSEARCH_USERNAME'],
-                                   ntlm_pass= ext.settings['ELASTICSEARCH_PASSWORD'],
-                                   timeout=ext.settings.get('ELASTICSEARCH_TIMEOUT',60))
-        else :
+                                   ntlm_user=ext.settings['ELASTICSEARCH_USERNAME'],
+                                   ntlm_pass=ext.settings['ELASTICSEARCH_PASSWORD'],
+                                   timeout=ext.settings.get('ELASTICSEARCH_TIMEOUT', 60))
+        else:
             ext.es = Elasticsearch(hosts=es_servers, timeout=ext.settings.get('ELASTICSEARCH_TIMEOUT', 60))
         return ext
 
@@ -79,7 +83,7 @@ class ElasticSearchPipeline(object):
         index_suffix_format = self.settings.get('ELASTICSEARCH_INDEX_DATE_FORMAT', None)
 
         if index_suffix_format:
-            index_name += "-" + datetime.strftime(datetime.now(),index_suffix_format)
+            index_name += "-" + datetime.strftime(datetime.now(), index_suffix_format)
 
         index_action = {
             '_index': index_name,
@@ -90,7 +94,7 @@ class ElasticSearchPipeline(object):
         if self.settings['ELASTICSEARCH_UNIQ_KEY'] is not None:
             item_unique_key = item[self.settings['ELASTICSEARCH_UNIQ_KEY']]
             unique_key = self.get_unique_key(item_unique_key)
-            item_id = hashlib.sha1(unique_key).hexdigest()
+            item_id = hashlib.sha1(unique_key.encode('utf-8')).hexdigest()
             index_action['_id'] = item_id
             logging.debug('Generated unique key %s' % item_id)
 
@@ -104,7 +108,7 @@ class ElasticSearchPipeline(object):
         helpers.bulk(self.es, self.items_buffer)
 
     def process_item(self, item, spider):
-        if isinstance(item, types.GeneratorType) or isinstance(item, types.ListType):
+        if isinstance(item, types.GeneratorType) or isinstance(item, list):
             for each in item:
                 self.process_item(each, spider)
         else:
@@ -115,4 +119,3 @@ class ElasticSearchPipeline(object):
     def close_spider(self, spider):
         if len(self.items_buffer):
             self.send_items()
-

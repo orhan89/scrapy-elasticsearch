@@ -5,9 +5,10 @@ from elasticsearch.connection import RequestsHttpConnection
 from elasticsearch.connection_pool import ConnectionPool, DummyConnectionPool
 from elasticsearch.serializer import JSONSerializer, Deserializer, DEFAULT_SERIALIZERS
 from elasticsearch.exceptions import ConnectionError, TransportError, SerializationError, \
-                        ConnectionTimeout, ImproperlyConfigured
+    ConnectionTimeout, ImproperlyConfigured
 import requests
 from requests_ntlm import HttpNtlmAuth
+
 
 def get_host_info(node_info, host):
     """
@@ -27,10 +28,11 @@ def get_host_info(node_info, host):
 
     # ignore master only nodes
     if (attrs.get('data', 'true') == 'false' and
-        attrs.get('client', 'false') == 'false' and
-        attrs.get('master', 'true') == 'true'):
+            attrs.get('client', 'false') == 'false' and
+            attrs.get('master', 'true') == 'true'):
         return None
     return host
+
 
 class TransportNTLM(object):
     """
@@ -39,12 +41,13 @@ class TransportNTLM(object):
 
     Main interface is the `perform_request` method.
     """
+
     def __init__(self, hosts, connection_class=RequestsHttpConnection,
-        connection_pool_class=ConnectionPool, host_info_callback=get_host_info,
-        sniff_on_start=False, sniffer_timeout=None, sniff_timeout=.1,
-        sniff_on_connection_fail=False, serializer=JSONSerializer(), serializers=None,
-        default_mimetype='application/json', max_retries=3, retry_on_status=(503, 504, ),
-        retry_on_timeout=False, send_get_body_as='GET', **kwargs):
+                 connection_pool_class=ConnectionPool, host_info_callback=get_host_info,
+                 sniff_on_start=False, sniffer_timeout=None, sniff_timeout=.1,
+                 sniff_on_connection_fail=False, serializer=JSONSerializer(), serializers=None,
+                 default_mimetype='application/json', max_retries=3, retry_on_status=(503, 504, ),
+                 retry_on_timeout=False, send_get_body_as='GET', **kwargs):
         """
         :arg hosts: list of dictionaries, each containing keyword arguments to
             create a `connection_class` instance
@@ -126,7 +129,6 @@ class TransportNTLM(object):
         if sniff_on_start:
             self.sniff_hosts(True)
 
-
     def add_connection(self, host):
         """
         Create a new :class:`~elasticsearch.Connection` instance and add it to the pool.
@@ -162,10 +164,10 @@ class TransportNTLM(object):
                 raise ImproperlyConfigured(
                     'Scheme specified in connection (%s) is not the same as the connection class (%s) specifies (%s).' % (
                         host['scheme'], self.connection_class.__name__, self.connection_class.transport_schema
-                ))
-            ntlm_auth = HttpNtlmAuth(kwargs.get('ntlm_user',''), kwargs.get('ntlm_pass',''))
+                    ))
+            ntlm_auth = HttpNtlmAuth(kwargs.get('ntlm_user', ''), kwargs.get('ntlm_pass', ''))
             return self.connection_class(http_auth=ntlm_auth, **kwargs)
-        connections = map(_create_connection, hosts)
+        connections = list(map(_create_connection, hosts))
 
         connections = list(zip(connections, hosts))
         if len(connections) == 1:
@@ -207,7 +209,7 @@ class TransportNTLM(object):
                 try:
                     # use small timeout for the sniffing request, should be a fast api call
                     _, headers, node_info = c.perform_request('GET', '/_nodes/_all/clear',
-                        timeout=self.sniff_timeout if not initial else None)
+                                                              timeout=self.sniff_timeout if not initial else None)
                     node_info = self.deserializer.loads(node_info, headers.get('content-type'))
                     break
                 except (ConnectionError, SerializationError):
@@ -220,7 +222,6 @@ class TransportNTLM(object):
             raise
 
         return list(node_info['nodes'].values())
-
 
     def sniff_hosts(self, initial=False):
         """
@@ -355,4 +356,3 @@ class TransportNTLM(object):
                 if data:
                     data = self.deserializer.loads(data, headers.get('content-type'))
                 return status, data
-
